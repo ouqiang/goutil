@@ -18,6 +18,8 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 // MD5 生成MD5摘要
@@ -26,6 +28,13 @@ func MD5(s string) string {
 	m.Write([]byte(s))
 
 	return hex.EncodeToString(m.Sum(nil))
+}
+
+// RandNumber 生成min - max之间的随机数
+func RandNumber(min, max int) int {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	return min + r.Intn(max-min)
 }
 
 // PanicToError Panic转换为error
