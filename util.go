@@ -18,7 +18,10 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"html/template"
 	"math/rand"
+	"os"
+	"runtime"
 	"time"
 )
 
@@ -46,4 +49,30 @@ func PanicToError(f func()) (err error) {
 	}()
 	f()
 	return
+}
+
+// PrintAppVersion 打印应用版本
+func PrintAppVersion(appVersion, GitCommit, BuildDate string) {
+	content := `
+   Version: {{.Version}}
+Go Version: {{.GoVersion}}
+Git Commit: {{.GitCommit}}
+     Built: {{.BuildDate}}
+   OS/ARCH: {{.GOOS}}/{{.GOARCH}}
+`
+	tpl, err := template.New("version").Parse(content)
+	if err != nil {
+		panic("parse version template error: " + err.Error())
+	}
+	err = tpl.Execute(os.Stdout, map[string]string{
+		"Version":   appVersion,
+		"GoVersion": runtime.Version(),
+		"GitCommit": GitCommit,
+		"BuildDate": BuildDate,
+		"GOOS":      runtime.GOOS,
+		"GOARCH":    runtime.GOARCH,
+	})
+	if err != nil {
+		panic("replace version template error: " + err.Error())
+	}
 }
