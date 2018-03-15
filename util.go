@@ -15,12 +15,12 @@
 package goutil
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
 	"html/template"
 	"math/rand"
-	"os"
 	"runtime"
 	"time"
 )
@@ -53,6 +53,15 @@ func PanicToError(f func()) (err error) {
 
 // PrintAppVersion 打印应用版本
 func PrintAppVersion(appVersion, GitCommit, BuildDate string) {
+	versionInfo, err := FormatAppVersion(appVersion, GitCommit, BuildDate)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(versionInfo)
+}
+
+// FormatAppVersion 格式化应用版本信息
+func FormatAppVersion(appVersion, GitCommit, BuildDate string) (string, error) {
 	content := `
    Version: {{.Version}}
 Go Version: {{.GoVersion}}
@@ -62,9 +71,10 @@ Git Commit: {{.GitCommit}}
 `
 	tpl, err := template.New("version").Parse(content)
 	if err != nil {
-		panic("parse version template error: " + err.Error())
+		return "", err
 	}
-	err = tpl.Execute(os.Stdout, map[string]string{
+	var buf bytes.Buffer
+	err = tpl.Execute(&buf, map[string]string{
 		"Version":   appVersion,
 		"GoVersion": runtime.Version(),
 		"GitCommit": GitCommit,
@@ -73,6 +83,8 @@ Git Commit: {{.GitCommit}}
 		"GOARCH":    runtime.GOARCH,
 	})
 	if err != nil {
-		panic("replace version template error: " + err.Error())
+		return "", err
 	}
+
+	return buf.String(), err
 }
