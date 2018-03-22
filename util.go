@@ -20,7 +20,11 @@ import (
 	"encoding/hex"
 	"fmt"
 	"html/template"
+	"io"
 	"math/rand"
+	"net/http"
+	"os"
+	"path"
 	"runtime"
 	"time"
 )
@@ -87,4 +91,18 @@ Git Commit: {{.GitCommit}}
 	}
 
 	return buf.String(), err
+}
+
+// DownloadFile 文件下载
+func DownloadFile(filePath string, rw http.ResponseWriter) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	filename := path.Base(filePath)
+	rw.Header().Set("Content-Type", "application/octet-stream")
+	rw.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	_, err = io.Copy(rw, file)
+
+	return err
 }
