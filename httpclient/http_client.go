@@ -24,6 +24,8 @@ type RequestOption struct {
 	Header http.Header
 	// Body 请求Body
 	Body io.Reader
+	// 自动执行重定向
+	AutoRedirect bool
 }
 
 // ResponseWrapper 响应包装
@@ -106,6 +108,11 @@ func setClientOption(c *http.Client, opt *RequestOption) {
 		c.Timeout = opt.Timeout
 	} else {
 		c.Timeout = defaultTimeout
+	}
+	if !opt.AutoRedirect {
+		c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
 	}
 }
 
