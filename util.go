@@ -39,8 +39,15 @@ func MD5(s string) string {
 }
 
 // RandNumber 生成min - max之间的随机数
+// 如果min大于max, panic
 func RandNumber(min, max int) int {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	switch {
+	case min == max:
+		return min
+	case min > max:
+		panic("min must be less than or equal to max")
+	}
 
 	return min + r.Intn(max-min)
 }
