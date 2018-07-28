@@ -27,6 +27,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -127,4 +128,19 @@ func WorkDir() (string, error) {
 	}
 
 	return wd, nil
+}
+
+// WaitGroupWrapper waitGroup包装
+type WaitGroupWrapper struct {
+	sync.WaitGroup
+}
+
+// Wrap 包装Add, Done方法
+func (w *WaitGroupWrapper) Wrap(f func()) {
+	w.Add(1)
+	go func() {
+		f()
+		w.Done()
+	}()
+
 }

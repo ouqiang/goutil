@@ -135,3 +135,19 @@ func TestWorkDir(t *testing.T) {
 		t.Fatalf("got working dir [%s], want working dir [%s]", wd, os.Args[0])
 	}
 }
+
+func TestWaitGroupWrapper_Wrap(t *testing.T) {
+	wg := WaitGroupWrapper{}
+	n := 10
+	exited := make(chan struct{}, n)
+	f := func() {
+		exited <- struct{}{}
+	}
+	for i := 0; i < n; i++ {
+		wg.Wrap(f)
+	}
+	wg.Wait()
+	for i := 0; i < n; i++ {
+		<-exited
+	}
+}
