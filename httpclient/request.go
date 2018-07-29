@@ -32,17 +32,26 @@ const (
 
 var (
 	defaultClient = &http.Client{Timeout: defaultTimeout}
+	// 如果设置了Accept-Encoding, 不会自动解压
+	defaultHeader = map[string]string{
+		"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+		"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,ja;q=0.7",
+		"Cache-Control":   "no-cache",
+		"Pragma":          "no-cache",
+		"User-Agent":      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.170 Safari/537.36",
+	}
 )
 
 // Request http请求
 // NOTICE: 不支持并发调用
 type Request struct {
-	client          *http.Client
-	debug           bool
-	timeout         time.Duration
-	proxyURL        string
-	retryTimes      int
-	shouldRetryFunc func(*http.Response, error) bool
+	client              *http.Client
+	debug               bool
+	timeout             time.Duration
+	proxyURL            string
+	retryTimes          int
+	enableDefaultHeader bool
+	shouldRetryFunc     func(*http.Response, error) bool
 }
 
 // NewRequest 创建request
@@ -80,6 +89,13 @@ func (req *Request) SetShouldRetryFunc(f func(*http.Response, error) bool) *Requ
 // EnableDebug 开启调试模式
 func (req *Request) EnableDebug() *Request {
 	req.debug = true
+
+	return req
+}
+
+// EnableDefaultHeader 自动设置默认header
+func (req *Request) EnableDefaultHeader() *Request {
+	req.enableDefaultHeader = true
 
 	return req
 }
@@ -201,6 +217,11 @@ func (req *Request) build(method string, url string, data interface{}, header ht
 		header = make(http.Header)
 	}
 	targetReq.Header = header
+	if req.enableDefaultHeader {
+		for k, v := range defaultHeader {
+			targetReq.Header.Add(k, v)
+		}
+	}
 
 	return targetReq, nil
 }
