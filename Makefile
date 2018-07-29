@@ -3,11 +3,12 @@ export CGO_ENABLED=1
 
 .PHONY: test
 test:
-	go test -race ./... -v
+	go test -race ./...
+
 
 .PHONY: bench
 bench:
-	go test -race --bench=. ./... -v
+	go test -race --bench=. ./...
 
 .PHONY: test-cover
 test-conver:
