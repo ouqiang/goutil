@@ -51,6 +51,7 @@ type Request struct {
 	proxyURL            string
 	retryTimes          int
 	enableDefaultHeader bool
+	disableKeepAlive    bool
 	shouldRetryFunc     func(*http.Response, error) bool
 }
 
@@ -103,6 +104,13 @@ func (req *Request) EnableDefaultHeader() *Request {
 // SetProxy 设置代理
 func (req *Request) SetProxy(proxyURL string) *Request {
 	req.proxyURL = proxyURL
+
+	return req
+}
+
+// DisableKeepAlive 关闭连接重用
+func (req *Request) DisableKeepAlive() *Request {
+	req.disableKeepAlive = true
 
 	return req
 }
@@ -167,7 +175,10 @@ func (req *Request) setClientIfNeed() {
 	if req.client != nil {
 		return
 	}
-	if req.timeout == 0 && req.proxyURL == "" {
+	if req.timeout == 0 &&
+		req.proxyURL == "" &&
+		req.disableKeepAlive == false {
+
 		req.client = defaultClient
 		return
 	}
@@ -178,7 +189,7 @@ func (req *Request) setClientIfNeed() {
 		req.client.Timeout = defaultTimeout
 	}
 
-	if req.proxyURL != "" {
+	if req.proxyURL != "" || req.disableKeepAlive {
 		req.client.Transport = req.transport()
 	}
 }
@@ -197,6 +208,7 @@ func (req *Request) transport() http.RoundTripper {
 			KeepAlive: 30 * time.Second,
 			DualStack: true,
 		}).DialContext,
+		DisableKeepAlives:     req.disableKeepAlive,
 		MaxIdleConns:          100,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,

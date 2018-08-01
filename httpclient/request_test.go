@@ -25,8 +25,6 @@ import (
 
 	"errors"
 
-	"time"
-
 	"github.com/ouqiang/goutil"
 )
 
@@ -269,28 +267,5 @@ func TestRequest_SetRetryTimes(t *testing.T) {
 
 	if retryTimes != -1 {
 		t.Errorf("got retrytimes %d, want %d", retryTimes, -1)
-	}
-}
-
-func TestRequest_SetTimeout(t *testing.T) {
-	timeout := 100 * time.Millisecond
-	handler := func(rw http.ResponseWriter, req *http.Request) {
-		time.Sleep(5 * time.Second)
-	}
-	s := httptest.NewServer(http.HandlerFunc(handler))
-	defer s.Close()
-
-	req := NewRequest()
-	req.SetTimeout(timeout)
-	startTime := time.Now()
-	_, err := req.Get(s.URL, nil, nil)
-	endTime := time.Now()
-	if err != nil {
-		t.Fatal(err)
-	}
-	elasped := endTime.Sub(startTime)
-	expected := timeout + time.Duration(100*time.Millisecond)
-	if elasped > expected {
-		t.Errorf("got durantion %d, want %d", elasped, expected)
 	}
 }
