@@ -217,6 +217,10 @@ func (req *Request) build(method string, url string, data interface{}, header ht
 		header = make(http.Header)
 	}
 	targetReq.Header = header
+	host := header.Get("Host")
+	if host != "" {
+		targetReq.Host = host
+	}
 	if req.enableDefaultHeader {
 		for k, v := range defaultHeader {
 			targetReq.Header.Add(k, v)
