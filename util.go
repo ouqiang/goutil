@@ -57,7 +57,9 @@ func RandNumber(min, max int) int {
 func PanicToError(f func()) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			err = fmt.Errorf("panic: %s", e)
+			stackBuf := make([]byte, 4096)
+			n := runtime.Stack(stackBuf, false)
+			err = fmt.Errorf("panic: %v %s", err, stackBuf[:n])
 		}
 	}()
 	f()
