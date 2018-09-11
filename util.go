@@ -57,13 +57,19 @@ func RandNumber(min, max int) int {
 func PanicToError(f func()) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			stackBuf := make([]byte, 4096)
-			n := runtime.Stack(stackBuf, false)
-			err = fmt.Errorf("panic: %v %s", err, stackBuf[:n])
+			err = fmt.Errorf(PanicTrace(e))
 		}
 	}()
 	f()
 	return
+}
+
+// PanicTrace panic调用链跟踪
+func PanicTrace(err interface{}) string {
+	stackBuf := make([]byte, 4096)
+	n := runtime.Stack(stackBuf, false)
+
+	return fmt.Sprintf("panic: %v %s", err, stackBuf[:n])
 }
 
 // PrintAppVersion 打印应用版本
