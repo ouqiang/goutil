@@ -16,6 +16,7 @@ package httpclient
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -138,8 +139,19 @@ func (req *Request) PostJSON(url string, data interface{}, header http.Header) (
 		header = make(http.Header)
 	}
 	header.Set("Content-Type", "application/json")
+	var body interface{}
+	switch data.(type) {
+	case string, []byte, io.Reader:
+		body = data
+	default:
+		var err error
+		body, err = json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return req.do(http.MethodPost, url, data, header)
+	return req.do(http.MethodPost, url, body, header)
 }
 
 func (req *Request) do(method string, url string, data interface{}, header http.Header) (*Response, error) {
