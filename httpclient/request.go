@@ -32,7 +32,6 @@ const (
 )
 
 var (
-	defaultClient = &http.Client{Timeout: defaultTimeout}
 	// 如果设置了Accept-Encoding, 不会自动解压
 	defaultHeader = map[string]string{
 		"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
@@ -43,9 +42,7 @@ var (
 	}
 )
 
-// Request http请求
-// NOTICE: 不支持并发调用
-type Request struct {
+type options struct {
 	client              *http.Client
 	debug               bool
 	timeout             time.Duration
@@ -56,62 +53,111 @@ type Request struct {
 	shouldRetryFunc     func(*http.Response, error) bool
 }
 
+type Option func(*options)
+
+// WithClient 自定义http client
+func WithClient(client *http.Client) Option {
+	return func(opt *options) {
+		opt.client = client
+	}
+}
+
+// WithShouldRetryFunc 自定义是否需要重试
+func WithShouldRetryFunc(f func(*http.Response, error) bool) Option {
+	return func(opt *options) {
+		opt.shouldRetryFunc = f
+	}
+}
+
+// WithEnableDefaultHeader 设置默认header
+func WithEnableDefaultHeader() Option {
+	return func(opt *options) {
+		opt.enableDefaultHeader = true
+	}
+}
+
+// WithRetryTime 设置重试次数
+func WithRetryTime(retryTimes int) Option {
+	return func(opt *options) {
+		opt.retryTimes = retryTimes
+	}
+}
+
+// WithProxyURL 设置代理
+func WithProxyURL(proxyURL string) Option {
+	return func(opt *options) {
+		opt.proxyURL = proxyURL
+	}
+}
+
+// WithTimeout 设置超时
+func WithTimeout(timeout time.Duration) Option {
+	return func(opt *options) {
+		opt.timeout = timeout
+	}
+}
+
+// WithDisableKeepAlive 连接重用
+func WithDisableKeepAlive() Option {
+	return func(opt *options) {
+		opt.disableKeepAlive = true
+	}
+}
+
+// WithDebug 开启调试模式
+func WithDebug() Option {
+	return func(opt *options) {
+		opt.debug = true
+	}
+}
+
+// Request http请求
+type Request struct {
+	opts options
+}
+
 // NewRequest 创建request
-func NewRequest() *Request {
-	return &Request{}
-}
+func NewRequest(opt ...Option) *Request {
+	req := &Request{}
+	req.opts = options{}
+	for _, o := range opt {
+		o(&req.opts)
+	}
 
-// SetClient 自定义http client
-func (req *Request) SetClient(client *http.Client) *Request {
-	req.client = client
-	return req
-}
+	trans := &http.Transport{
+		Proxy: func(request *http.Request) (*url.URL, error) {
+			if req.opts.proxyURL != "" {
+				return url.Parse(req.opts.proxyURL)
+			}
 
-// SetTimeout 设置超时
-func (req *Request) SetTimeout(timeout time.Duration) *Request {
-	req.timeout = timeout
+			return nil, nil
+		},
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	if req.opts.disableKeepAlive {
+		trans.DisableKeepAlives = true
+	}
 
-	return req
-}
-
-// SetRetryTimes 设置重试次数
-func (req *Request) SetRetryTimes(retryTimes int) *Request {
-	req.retryTimes = retryTimes
-
-	return req
-}
-
-// SetShouldRetryFunc 设置是否应该重试方法
-func (req *Request) SetShouldRetryFunc(f func(*http.Response, error) bool) *Request {
-	req.shouldRetryFunc = f
-
-	return req
-}
-
-// EnableDebug 开启调试模式
-func (req *Request) EnableDebug() *Request {
-	req.debug = true
-
-	return req
-}
-
-// EnableDefaultHeader 自动设置默认header
-func (req *Request) EnableDefaultHeader() *Request {
-	req.enableDefaultHeader = true
-
-	return req
-}
-
-// SetProxy 设置代理
-func (req *Request) SetProxy(proxyURL string) *Request {
-	req.proxyURL = proxyURL
-
-	return req
-}
-
-// DisableKeepAlive 关闭连接重用
-func (req *Request) DisableKeepAlive() *Request {
-	req.disableKeepAlive = true
+	if req.opts.client == nil {
+		req.opts.client = &http.Client{}
+	}
+	if req.opts.client.Transport == nil {
+		req.opts.client.Transport = trans
+	}
+	if req.opts.timeout == 0 {
+		req.opts.client.Timeout = defaultTimeout
+	}
+	if req.opts.shouldRetryFunc == nil {
+		req.opts.shouldRetryFunc = req.shouldRetry
+	}
 
 	return req
 }
@@ -159,20 +205,16 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	if err != nil {
 		return nil, err
 	}
-	req.setClientIfNeed()
 	req.beforeRequest(targetReq)
 	execTimes := 1
-	if req.retryTimes > 0 {
-		execTimes += req.retryTimes
-	}
-	if req.shouldRetryFunc == nil {
-		req.shouldRetryFunc = req.shouldRetry
+	if req.opts.retryTimes > 0 {
+		execTimes += req.opts.retryTimes
 	}
 	var resp *http.Response
 	for i := 0; i < execTimes; i++ {
-		resp, err = req.client.Do(targetReq)
+		resp, err = req.opts.client.Do(targetReq)
 		req.afterResponse(resp, err)
-		if req.retryTimes > 0 && !req.shouldRetryFunc(resp, err) {
+		if req.opts.retryTimes > 0 && !req.opts.shouldRetryFunc(resp, err) {
 			break
 		}
 	}
@@ -181,53 +223,6 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	}
 
 	return newResponse(resp), err
-}
-
-func (req *Request) setClientIfNeed() {
-	if req.client != nil {
-		return
-	}
-	if req.timeout == 0 &&
-		req.proxyURL == "" &&
-		req.disableKeepAlive == false {
-
-		req.client = defaultClient
-		return
-	}
-	req.client = &http.Client{}
-	if req.timeout > 0 {
-		req.client.Timeout = req.timeout
-	} else {
-		req.client.Timeout = defaultTimeout
-	}
-
-	if req.proxyURL != "" || req.disableKeepAlive {
-		req.client.Transport = req.transport()
-	}
-}
-
-func (req *Request) transport() http.RoundTripper {
-	trans := &http.Transport{
-		Proxy: func(request *http.Request) (*url.URL, error) {
-			if req.proxyURL != "" {
-				return url.Parse(req.proxyURL)
-			}
-
-			return nil, nil
-		},
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		DisableKeepAlives:     req.disableKeepAlive,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-
-	return trans
 }
 
 // 构造http.Request
@@ -245,7 +240,7 @@ func (req *Request) build(method string, url string, data interface{}, header ht
 	if host != "" {
 		targetReq.Host = host
 	}
-	if req.enableDefaultHeader {
+	if req.opts.enableDefaultHeader {
 		for k, v := range defaultHeader {
 			targetReq.Header.Add(k, v)
 		}
@@ -264,7 +259,7 @@ func (req *Request) afterResponse(resp *http.Response, err error) {
 
 // request调试输出
 func (req *Request) dumpRequestIfNeed(r *http.Request) {
-	if !req.debug {
+	if !req.opts.debug {
 		return
 	}
 	reqDump, err := httputil.DumpRequestOut(r, true)
@@ -276,7 +271,7 @@ func (req *Request) dumpRequestIfNeed(r *http.Request) {
 
 // response调试输出
 func (req *Request) dumpResponseIfNeed(resp *http.Response, err error) {
-	if !req.debug {
+	if !req.opts.debug {
 		return
 	}
 	if err != nil {

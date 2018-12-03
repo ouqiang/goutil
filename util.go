@@ -147,8 +147,8 @@ type WaitGroupWrapper struct {
 func (w *WaitGroupWrapper) Wrap(f func()) {
 	w.Add(1)
 	go func() {
+		defer w.Done()
 		f()
-		w.Done()
 	}()
 
 }

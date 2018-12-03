@@ -228,8 +228,7 @@ func TestRequest_SetRetryTimes(t *testing.T) {
 	}
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
-	req := NewRequest()
-	req.SetRetryTimes(retryTimes)
+	req := NewRequest(WithRetryTime(retryTimes))
 	resp, err := req.Get(s.URL, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -242,7 +241,7 @@ func TestRequest_SetRetryTimes(t *testing.T) {
 	}
 
 	retryTimes = 3
-	req.SetRetryTimes(retryTimes)
+	req = NewRequest(WithRetryTime(retryTimes))
 	resp, err = req.Get(s.URL, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -256,7 +255,7 @@ func TestRequest_SetRetryTimes(t *testing.T) {
 	}
 
 	retryTimes = 1
-	req.SetRetryTimes(retryTimes)
+	req = NewRequest(WithRetryTime(retryTimes))
 	resp, err = req.Get(s.URL, nil, nil)
 	if err != nil {
 		t.Fatal(err)
