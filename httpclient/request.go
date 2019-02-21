@@ -16,6 +16,7 @@ package httpclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -50,8 +51,16 @@ type options struct {
 	retryTimes          int
 	enableDefaultHeader bool
 	disableKeepAlive    bool
+	dnsResolver         DNSResolver
 	shouldRetryFunc     func(*http.Response, error) bool
 }
+
+// DNSResolver DNS解析
+type DNSResolver interface {
+	Fetch(host string) (ip string, err error)
+}
+
+type DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 type Option func(*options)
 
@@ -59,6 +68,12 @@ type Option func(*options)
 func WithClient(client *http.Client) Option {
 	return func(opt *options) {
 		opt.client = client
+	}
+}
+
+func WithDNSResolver(dnsResolver DNSResolver) Option {
+	return func(opt *options) {
+		opt.dnsResolver = dnsResolver
 	}
 }
 
@@ -148,6 +163,9 @@ func NewRequest(opt ...Option) *Request {
 
 	if req.opts.client == nil {
 		req.opts.client = &http.Client{}
+	}
+	if req.opts.dnsResolver != nil {
+		trans.DialContext = req.dialContext()
 	}
 	if req.opts.client.Transport == nil {
 		req.opts.client.Transport = trans
@@ -341,4 +359,23 @@ func (req *Request) makeBody(data interface{}) io.Reader {
 	}
 
 	return body
+}
+
+func (req *Request) dialContext() DialContext {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		separator := strings.LastIndex(addr, ":")
+		ip, err := req.opts.dnsResolver.Fetch(addr[:separator])
+		if err != nil {
+			return nil, err
+		}
+
+		addr = ip + addr[separator:]
+		dialer := &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}
+
+		return dialer.DialContext(ctx, network, addr)
+	}
 }
