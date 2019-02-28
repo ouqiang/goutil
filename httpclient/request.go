@@ -51,14 +51,12 @@ type options struct {
 	retryTimes          int
 	enableDefaultHeader bool
 	disableKeepAlive    bool
-	dnsResolver         DNSResolver
+	dnsResolver         DNSResolverFunc
 	shouldRetryFunc     func(*http.Response, error) bool
 }
 
 // DNSResolver DNS解析
-type DNSResolver interface {
-	Fetch(host string) (ip string, err error)
-}
+type DNSResolverFunc func(host string) (ip string, err error)
 
 type DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
@@ -71,7 +69,7 @@ func WithClient(client *http.Client) Option {
 	}
 }
 
-func WithDNSResolver(dnsResolver DNSResolver) Option {
+func WithDNSResolver(dnsResolver DNSResolverFunc) Option {
 	return func(opt *options) {
 		opt.dnsResolver = dnsResolver
 	}
@@ -364,7 +362,7 @@ func (req *Request) makeBody(data interface{}) io.Reader {
 func (req *Request) dialContext() DialContext {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		separator := strings.LastIndex(addr, ":")
-		ip, err := req.opts.dnsResolver.Fetch(addr[:separator])
+		ip, err := req.opts.dnsResolver(addr[:separator])
 		if err != nil {
 			return nil, err
 		}
