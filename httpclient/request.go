@@ -29,7 +29,9 @@ import (
 )
 
 const (
-	defaultTimeout = 20 * time.Second
+	defaultTimeout             = 20 * time.Second
+	defaultConnectTimeout      = 5 * time.Second
+	defaultMaxIdleConnsPerHost = 2
 )
 
 var (
@@ -47,6 +49,8 @@ type options struct {
 	client              *http.Client
 	debug               bool
 	timeout             time.Duration
+	connectTimeout      time.Duration
+	maxIdleConnsPerHost int
 	proxyURL            string
 	retryTimes          int
 	enableDefaultHeader bool
@@ -110,6 +114,20 @@ func WithTimeout(timeout time.Duration) Option {
 	}
 }
 
+// WithConnectTimeout 设置连接超时
+func WithConnectTimeout(timeout time.Duration) Option {
+	return func(opt *options) {
+		opt.connectTimeout = timeout
+	}
+}
+
+// WithMaxIdleConnsPerHost 设置每个host最大空闲连接数
+func WithMaxIdleConnsPerHost(n int) Option {
+	return func(opt *options) {
+		opt.maxIdleConnsPerHost = n
+	}
+}
+
 // WithDisableKeepAlive 连接重用
 func WithDisableKeepAlive() Option {
 	return func(opt *options) {
@@ -136,6 +154,12 @@ func NewRequest(opt ...Option) *Request {
 	for _, o := range opt {
 		o(&req.opts)
 	}
+	if req.opts.connectTimeout <= 0 {
+		req.opts.connectTimeout = defaultConnectTimeout
+	}
+	if req.opts.maxIdleConnsPerHost <= 0 {
+		req.opts.maxIdleConnsPerHost = defaultMaxIdleConnsPerHost
+	}
 
 	trans := &http.Transport{
 		Proxy: func(request *http.Request) (*url.URL, error) {
@@ -146,13 +170,13 @@ func NewRequest(opt ...Option) *Request {
 			return nil, nil
 		},
 		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
+			Timeout:   req.opts.connectTimeout,
 			KeepAlive: 30 * time.Second,
-			DualStack: true,
 		}).DialContext,
 		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   req.opts.maxIdleConnsPerHost,
 		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 	if req.opts.disableKeepAlive {
@@ -369,9 +393,8 @@ func (req *Request) dialContext() DialContext {
 
 		addr = ip + addr[separator:]
 		dialer := &net.Dialer{
-			Timeout:   30 * time.Second,
+			Timeout:   req.opts.connectTimeout,
 			KeepAlive: 30 * time.Second,
-			DualStack: true,
 		}
 
 		return dialer.DialContext(ctx, network, addr)
