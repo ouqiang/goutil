@@ -48,6 +48,7 @@ var (
 type options struct {
 	client              *http.Client
 	debug               bool
+	cookieJar           http.CookieJar
 	timeout             time.Duration
 	connectTimeout      time.Duration
 	maxIdleConnsPerHost int
@@ -70,6 +71,12 @@ type Option func(*options)
 func WithClient(client *http.Client) Option {
 	return func(opt *options) {
 		opt.client = client
+	}
+}
+
+func WithCookieJar(cookieJar http.CookieJar) Option {
+	return func(opt *options) {
+		opt.cookieJar = cookieJar
 	}
 }
 
@@ -154,13 +161,18 @@ func NewRequest(opt ...Option) *Request {
 	for _, o := range opt {
 		o(&req.opts)
 	}
+	req.init()
+
+	return req
+}
+
+func (req *Request) init() {
 	if req.opts.connectTimeout <= 0 {
 		req.opts.connectTimeout = defaultConnectTimeout
 	}
 	if req.opts.maxIdleConnsPerHost <= 0 {
 		req.opts.maxIdleConnsPerHost = defaultMaxIdleConnsPerHost
 	}
-
 	trans := &http.Transport{
 		Proxy: func(request *http.Request) (*url.URL, error) {
 			if req.opts.proxyURL != "" {
@@ -198,8 +210,9 @@ func NewRequest(opt ...Option) *Request {
 	if req.opts.shouldRetryFunc == nil {
 		req.opts.shouldRetryFunc = req.shouldRetry
 	}
-
-	return req
+	if req.opts.cookieJar != nil {
+		req.opts.client.Jar = req.opts.cookieJar
+	}
 }
 
 // Get get请求
