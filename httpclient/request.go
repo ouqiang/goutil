@@ -187,8 +187,8 @@ func (req *Request) init() {
 		}).DialContext,
 		MaxIdleConns:          100,
 		MaxIdleConnsPerHost:   req.opts.maxIdleConnsPerHost,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   5 * time.Second,
+		IdleConnTimeout:       10 * time.Second,
+		TLSHandshakeTimeout:   3 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 	if req.opts.disableKeepAlive {
