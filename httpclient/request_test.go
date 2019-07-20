@@ -57,8 +57,7 @@ func TestRequest_Get(t *testing.T) {
 
 func TestRequest_makeBody(t *testing.T) {
 	req := NewRequest()
-	var r io.Reader
-	r = req.makeBody(nil)
+	r := req.makeBody(nil)
 	require.Nil(t, r)
 	s := "name=golang"
 	r = req.makeBody(s)

@@ -18,8 +18,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -47,6 +47,11 @@ var (
 	}
 )
 
+type Interceptor interface {
+	BeforeRequest(req *http.Request)
+	AfterResponse(resp *http.Response, err error)
+}
+
 type options struct {
 	client              *http.Client
 	debug               bool
@@ -60,6 +65,7 @@ type options struct {
 	disableKeepAlive    bool
 	dnsResolver         DNSResolverFunc
 	shouldRetryFunc     func(*http.Response, error) bool
+	interceptor         Interceptor
 }
 
 // DNSResolver DNS解析
@@ -92,6 +98,12 @@ func WithDNSResolver(dnsResolver DNSResolverFunc) Option {
 func WithShouldRetryFunc(f func(*http.Response, error) bool) Option {
 	return func(opt *options) {
 		opt.shouldRetryFunc = f
+	}
+}
+
+func WithInterceptor(i Interceptor) Option {
+	return func(opt *options) {
+		opt.interceptor = i
 	}
 }
 
@@ -323,10 +335,16 @@ func (req *Request) build(method string, url string, data interface{}, header ht
 
 func (req *Request) beforeRequest(r *http.Request) {
 	req.dumpRequestIfNeed(r)
+	if req.opts.interceptor != nil {
+		req.opts.interceptor.BeforeRequest(r)
+	}
 }
 
 func (req *Request) afterResponse(resp *http.Response, err error) {
 	req.dumpResponseIfNeed(resp, err)
+	if req.opts.interceptor != nil {
+		req.opts.interceptor.AfterResponse(resp, err)
+	}
 }
 
 // request调试输出
@@ -338,7 +356,7 @@ func (req *Request) dumpRequestIfNeed(r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("[Request]\n\n%s\n", reqDump)
+	log.Printf("[Request]\n\n%s\n", reqDump)
 }
 
 // response调试输出
@@ -347,14 +365,14 @@ func (req *Request) dumpResponseIfNeed(resp *http.Response, err error) {
 		return
 	}
 	if err != nil {
-		fmt.Printf("[Response]\n\n%s\n", err)
+		log.Printf("[Response]\n\n%s\n", err)
 		return
 	}
 	respDump, err := httputil.DumpResponse(resp, true)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("[Response]\n\n %s\n", respDump)
+	log.Printf("[Response]\n\n %s\n", respDump)
 }
 
 // 是否要重试

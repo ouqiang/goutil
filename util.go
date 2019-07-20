@@ -16,8 +16,6 @@ package goutil
 
 import (
 	"bytes"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io"
@@ -30,14 +28,6 @@ import (
 	"sync"
 	"time"
 )
-
-// MD5 生成MD5摘要
-func MD5(s string) string {
-	m := md5.New()
-	m.Write([]byte(s))
-
-	return hex.EncodeToString(m.Sum(nil))
-}
 
 // RandNumber 生成min - max之间的随机数
 // 如果min大于max, panic

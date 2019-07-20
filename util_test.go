@@ -27,27 +27,6 @@ import (
 	"testing"
 )
 
-func TestMD5(t *testing.T) {
-	str := "goutil"
-	result := MD5(str)
-	expected := "3fa6e676e7d5c558e9a49b599cbc975f"
-	if result != expected {
-		t.Errorf("got %s, want %s", result, expected)
-	}
-}
-
-func BenchmarkMD5(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		MD5("goutil")
-	}
-}
-
-func ExampleMD5() {
-	str := "goutil"
-	fmt.Println(MD5(str))
-	// OUTPUT: 3fa6e676e7d5c558e9a49b599cbc975f
-}
-
 func TestRandNumber(t *testing.T) {
 	f := func(min, max int) {
 		for i := min; i <= max; i++ {
@@ -77,8 +56,7 @@ func ExampleRandNumber() {
 
 func TestPanicToError(t *testing.T) {
 	err := PanicToError(func() {
-		var m map[string]string
-		m["key"] = "value"
+		panic("error")
 	})
 	if err == nil {
 		t.Errorf("got err is nil, want err is not nil")
@@ -87,8 +65,7 @@ func TestPanicToError(t *testing.T) {
 
 func ExamplePanicToError() {
 	err := PanicToError(func() {
-		var m map[string]string
-		m["key"] = "value"
+		panic("error")
 	})
 	fmt.Println(err)
 }

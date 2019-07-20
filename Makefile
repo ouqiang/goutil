@@ -8,11 +8,11 @@ test:
 
 .PHONY: bench
 bench:
-	go test -race -v --bench=. ./...
+	go test -race -run none -v --bench=. ./...
 
-.PHONY: test-cover
-test-conver:
-	go test -race -v ./... -cover
+.PHONY: coverage
+coverage:
+	go test -run none -v -cover ./...
 
 .PHONY: proto
 proto:
