@@ -20,6 +20,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"github.com/gogo/protobuf/proto"
 )
 
 // Response http响应
@@ -37,11 +39,24 @@ func (resp *Response) IsStatusOK() bool {
 	return resp.rawResp.StatusCode == http.StatusOK
 }
 
-// DecodeJSON http.Body json decode
+// DecodeJSON  json decode
 func (resp *Response) DecodeJSON(v interface{}) error {
-	defer resp.rawResp.Body.Close()
+	err := json.NewDecoder(resp.rawResp.Body).Decode(v)
+	_ = resp.rawResp.Body.Close()
 
-	return json.NewDecoder(resp.rawResp.Body).Decode(v)
+	return err
+}
+
+// DecodeProtoBuf protoBuf decode
+func (resp *Response) DecodeProtoBuf(v interface{}) error {
+	data, err := resp.Bytes()
+	if err != nil {
+		return err
+	}
+
+	err = proto.Unmarshal(data, v.(proto.Message))
+
+	return err
 }
 
 // String 读取http.Body, 返回string
@@ -56,38 +71,42 @@ func (resp *Response) String() (string, error) {
 
 // Bytes 读取http.Body, 返回bytes
 func (resp *Response) Bytes() ([]byte, error) {
-	defer resp.rawResp.Body.Close()
 	b, err := ioutil.ReadAll(resp.rawResp.Body)
-	if err != nil {
-		return nil, err
-	}
+	_ = resp.rawResp.Body.Close()
 
-	return b, nil
+	return b, err
 }
 
 // Discard 丢弃http.body
 func (resp *Response) Discard() (int64, error) {
-	defer resp.rawResp.Body.Close()
+	n, err := io.Copy(ioutil.Discard, resp.rawResp.Body)
+	_ = resp.rawResp.Body.Close()
 
-	return io.Copy(ioutil.Discard, resp.rawResp.Body)
+	return n, err
 }
 
 // WriteFile 读取http.Body内容并写入文件中
 func (resp *Response) WriteFile(filename string) (int64, error) {
-	defer resp.rawResp.Body.Close()
+	defer func() {
+		_ = resp.rawResp.Body.Close()
+	}()
 	f, err := os.Create(filename)
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
+
 	return io.Copy(f, resp.rawResp.Body)
 }
 
 // WriteTo 读取http.Body并写入w中
 func (resp *Response) WriteTo(w io.Writer) (int64, error) {
-	defer resp.rawResp.Body.Close()
+	n, err := io.Copy(w, resp.rawResp.Body)
+	_ = resp.rawResp.Body.Close()
 
-	return io.Copy(w, resp.rawResp.Body)
+	return n, err
 }
 
 // Header 获取header

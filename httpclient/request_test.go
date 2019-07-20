@@ -23,6 +23,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"errors"
 
 	"github.com/ouqiang/goutil"
@@ -33,7 +35,7 @@ func TestRequest_Get(t *testing.T) {
 	handler := func(rw http.ResponseWriter, req *http.Request) {
 		rw.Header().Set("name", req.URL.Query().Get("name"))
 		rw.Header().Set("X-Forwarded-For", req.Header.Get("X-Forwarded-For"))
-		io.WriteString(rw, content)
+		_, _ = io.WriteString(rw, content)
 	}
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
@@ -45,96 +47,65 @@ func TestRequest_Get(t *testing.T) {
 	header := make(http.Header)
 	header.Set("X-Forwarded-For", "8.8.8.8")
 	resp, err := req.Get(s.URL, params, header)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	data, err := resp.String()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if data != content {
-		t.Errorf("got %s, want %s", data, content)
-	}
-	if resp.Header().Get("name") != "golang" {
-		t.Errorf("got name %s, want %s", resp.Header().Get("name"), "golang")
-	}
-	if resp.Header().Get("X-Forwarded-For") != "8.8.8.8" {
-		t.Errorf("got X-Forwarded-For %s, want %s", resp.Header().Get("X-Forwarded-For"), "8.8.8.8")
-	}
+	require.NoError(t, err)
+	require.Equal(t, content, data)
+	require.Equal(t, "golang", resp.Header().Get("name"))
+	require.Equal(t, "8.8.8.8", resp.Header().Get("X-Forwarded-For"))
 }
 
 func TestRequest_makeBody(t *testing.T) {
 	req := NewRequest()
 	var r io.Reader
 	r = req.makeBody(nil)
-	if r != nil {
-		t.Fatal("got reader not nil, want nil")
-	}
+	require.Nil(t, r)
 	s := "name=golang"
 	r = req.makeBody(s)
 	out, err := ioutil.ReadAll(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s != string(out) {
-		t.Errorf("got %s, want %s", out, s)
-	}
+	require.NoError(t, err)
+	require.Equal(t, s, string(out))
+
 	b := []byte(s)
 	r = req.makeBody(b)
 	out, err = ioutil.ReadAll(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s != string(out) {
-		t.Errorf("got %s, want %s", out, s)
-	}
+	require.NoError(t, err)
+	require.Equal(t, s, string(out))
+
 	v := url.Values{}
 	v.Add("name", "golang")
 	r = req.makeBody(v)
 	out, err = ioutil.ReadAll(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s != string(out) {
-		t.Errorf("got %s, want %s", out, s)
-	}
+	require.NoError(t, err)
+	require.Equal(t, s, string(out))
+
 	r = req.makeBody(strings.NewReader(s))
 	out, err = ioutil.ReadAll(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s != string(out) {
-		t.Errorf("got %s, want %s", out, s)
-	}
+	require.NoError(t, err)
+	require.Equal(t, s, string(out))
 	err = goutil.PanicToError(func() {
 		r = req.makeBody(1)
 	})
-	if err == nil {
-		t.Errorf("got err is nil, want err is not nil")
-	}
+	require.NotNil(t, err)
 }
 
 func TestRequest_makeURLWithParams(t *testing.T) {
 	req := NewRequest()
 	baseURL := "https://golang.org"
 	u := req.makeURLWithParams(baseURL, nil)
-	if u != baseURL {
-		t.Errorf("got %s, want %s", u, baseURL)
-	}
+	require.Equal(t, baseURL, u)
+
 	data := url.Values{}
 	data.Set("name", "golang")
 	u = req.makeURLWithParams(baseURL, data)
 	expected := baseURL + "?name=golang"
-	if u != expected {
-		t.Errorf("got %s, want %s", u, expected)
-	}
+	require.Equal(t, expected, u)
+
 	data = url.Values{}
 	data.Set("name", "golang")
 	baseURL += "?"
 	u = req.makeURLWithParams(baseURL, data)
-	if u != expected {
-		t.Errorf("got %s, want %s", u, expected)
-	}
+	require.Equal(t, expected, u)
 }
 
 func TestRequest_shouldRetry(t *testing.T) {
@@ -142,21 +113,15 @@ func TestRequest_shouldRetry(t *testing.T) {
 	err := errors.New("should retry")
 
 	req := NewRequest()
-	if !req.shouldRetry(resp, err) {
-		t.Errorf("got no retry, should retry")
-	}
+	require.True(t, req.shouldRetry(resp, err))
 
 	err = nil
 	resp.StatusCode = http.StatusNotFound
-	if !req.shouldRetry(resp, err) {
-		t.Errorf("got no retry, should retry")
-	}
+	require.True(t, req.shouldRetry(resp, err))
 
 	err = nil
 	resp.StatusCode = http.StatusOK
-	if req.shouldRetry(resp, err) {
-		t.Errorf("got retry, should no retry")
-	}
+	require.False(t, req.shouldRetry(resp, err))
 
 }
 
@@ -177,18 +142,10 @@ func TestRequest_Post(t *testing.T) {
 	header.Set("From", "Post")
 	header.Set("X-Forwared-For", "8.8.8.8")
 	resp, err := req.Post(s.URL, data, header)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Header().Get("name") != "golang" {
-		t.Errorf("want name is golang")
-	}
-	if resp.Header().Get("From") != "Post" {
-		t.Errorf("want From is post")
-	}
-	if resp.Header().Get("X-Forwared-For") != "8.8.8.8" {
-		t.Errorf("want X-Forwared-For is 8.8.8.8")
-	}
+	require.NoError(t, err)
+	require.Equal(t, "golang", resp.Header().Get("name"))
+	require.Equal(t, "Post", resp.Header().Get("From"))
+	require.Equal(t, "8.8.8.8", resp.Header().Get("X-Forwared-For"))
 }
 
 func TestRequest_PostJSON(t *testing.T) {
@@ -197,23 +154,37 @@ func TestRequest_PostJSON(t *testing.T) {
 		if req.Header.Get("Content-Type") != "application/json" {
 			panic("invalid content-type")
 		}
-		io.Copy(rw, req.Body)
+		_, _ = io.Copy(rw, req.Body)
 	}
 	s := httptest.NewServer(http.HandlerFunc(handler))
 	defer s.Close()
 
 	req := NewRequest()
 	resp, err := req.PostJSON(s.URL, jsonString, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	body, err := resp.String()
-	if err != nil {
-		t.Fatal(err)
+	require.NoError(t, err)
+	require.Equal(t, jsonString, body)
+}
+
+func TestRequest_PostProtoBuf(t *testing.T) {
+	message := &Message{
+		Name: "protobuf",
 	}
-	if body != jsonString {
-		t.Errorf("got %s, want %s", body, jsonString)
+	handler := func(rw http.ResponseWriter, req *http.Request) {
+		_, _ = io.Copy(rw, req.Body)
 	}
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
+	req := NewRequest()
+	resp, err := req.PostProtoBuf(s.URL, message, nil)
+	require.NoError(t, err)
+
+	result := &Message{}
+	err = resp.DecodeProtoBuf(result)
+	require.NoError(t, err)
+	require.Equal(t, message.Name, result.Name)
 }
 
 func TestRequest_SetRetryTimes(t *testing.T) {
@@ -230,41 +201,21 @@ func TestRequest_SetRetryTimes(t *testing.T) {
 	defer s.Close()
 	req := NewRequest(WithRetryTime(retryTimes))
 	resp, err := req.Get(s.URL, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.IsStatusOK() {
-		t.Errorf("got status code %d, want %d", resp.Raw().StatusCode, http.StatusNotFound)
-	}
-	if retryTimes != -1 {
-		t.Errorf("got retrytimes %d, want %d", retryTimes, -1)
-	}
+	require.NoError(t, err)
+	require.False(t, resp.IsStatusOK())
+	require.Equal(t, -1, retryTimes)
 
 	retryTimes = 3
 	req = NewRequest(WithRetryTime(retryTimes))
 	resp, err = req.Get(s.URL, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !resp.IsStatusOK() {
-		t.Errorf("got status code %d, want %d", resp.Raw().StatusCode, http.StatusOK)
-	}
-
-	if retryTimes != 1 {
-		t.Errorf("got retrytimes %d, want %d", retryTimes, 1)
-	}
+	require.NoError(t, err)
+	require.True(t, resp.IsStatusOK())
+	require.Equal(t, 1, retryTimes)
 
 	retryTimes = 1
 	req = NewRequest(WithRetryTime(retryTimes))
 	resp, err = req.Get(s.URL, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.Raw().StatusCode != http.StatusNotFound {
-		t.Errorf("got status code %d, want %d", resp.Raw().StatusCode, http.StatusNotFound)
-	}
-
-	if retryTimes != -1 {
-		t.Errorf("got retrytimes %d, want %d", retryTimes, -1)
-	}
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNotFound, resp.Raw().StatusCode)
+	require.Equal(t, -1, retryTimes)
 }

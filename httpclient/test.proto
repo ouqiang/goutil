@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package httpclient;
+
+message Message {
+    string name = 1;
+}

@@ -26,6 +26,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/gogo/protobuf/proto"
 )
 
 const (
@@ -253,6 +255,20 @@ func (req *Request) PostJSON(url string, data interface{}, header http.Header) (
 	return req.do(http.MethodPost, url, body, header)
 }
 
+// PostProtoBuf 发送protoBuf body
+func (req *Request) PostProtoBuf(url string, v proto.Message, header http.Header) (*Response, error) {
+	if header == nil {
+		header = make(http.Header)
+	}
+	header.Set("Content-Type", "application/x-protobuf")
+	body, err := proto.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+
+	return req.do(http.MethodPost, url, body, header)
+}
+
 func (req *Request) do(method string, url string, data interface{}, header http.Header) (*Response, error) {
 	targetReq, err := req.build(method, url, data, header)
 	if err != nil {
@@ -260,6 +276,7 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	}
 	req.beforeRequest(targetReq)
 	execTimes := 1
+	retryInterval := 0
 	if req.opts.retryTimes > 0 {
 		execTimes += req.opts.retryTimes
 	}
@@ -270,6 +287,8 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 		if req.opts.retryTimes > 0 && !req.opts.shouldRetryFunc(resp, err) {
 			break
 		}
+		retryInterval <<= 1
+		time.Sleep(time.Duration(retryInterval) * time.Second)
 	}
 	if err != nil {
 		return nil, err
