@@ -1,7 +1,14 @@
 language: go
 go:
-  - 1.9.x
-script: go test -race ./... -v
+  - 1.12.x
+
+env:
+  global:
+    - GO111MODULE=on
+
+script:
+    - make test
+
 
 notifications:
   on_success: never

@@ -15,14 +15,43 @@
 // Package slice 数组常用操作
 package slice
 
-func IncludeString() {
+// ContainsString 是否包含字符串元素
+func ContainsString(a []string, s string) bool {
+	for _, item := range a {
+		if item == s {
+			return true
+		}
+	}
 
+	return false
 }
 
-func IncludeInt() {
+// ContainsInt 是否包含整型元素
+func ContainsInt(a []int, i int) bool {
+	for _, item := range a {
+		if item == i {
+			return true
+		}
+	}
 
+	return false
 }
 
-func RemoveEmptyString() {
+// RemoveEmptyString 移除空字符串
+func RemoveEmptyString(a []string) []string {
+	length := len(a)
+	if length == 0 {
+		return a
+	}
+	out := make([]string, 0, length)
+	for _, item := range a {
+		if item != "" {
+			out = append(out, item)
+		}
+	}
+	if len(out) == length {
+		return a
+	}
 
+	return out
 }
