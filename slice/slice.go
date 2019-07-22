@@ -55,3 +55,20 @@ func RemoveEmptyString(a []string) []string {
 
 	return out
 }
+
+// Remove 移除元素
+func Remove(a []string, s string) []string {
+        length := len(a)
+        if length == 0 {
+                return a
+        }
+        out := make([]string, 0, length)
+        for _, item := range a {
+                if item != s {
+                        out = append(out, item)
+                }
+        }
+
+        return out
+}
+

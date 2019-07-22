@@ -22,6 +22,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/url"
 	"strings"
@@ -47,10 +48,8 @@ var (
 	}
 )
 
-type Interceptor interface {
-	BeforeRequest(req *http.Request)
-	AfterResponse(resp *http.Response, err error)
-}
+type RequestInterceptor func(req *http.Request)
+type ResponseInterceptor func(req *http.Request, resp *http.Response, err error)
 
 type options struct {
 	client              *http.Client
@@ -65,7 +64,9 @@ type options struct {
 	disableKeepAlive    bool
 	dnsResolver         DNSResolverFunc
 	shouldRetryFunc     func(*http.Response, error) bool
-	interceptor         Interceptor
+	requestInterceptor  RequestInterceptor
+	responseInterceptor ResponseInterceptor
+	clientTrace         *httptrace.ClientTrace
 }
 
 // DNSResolver DNS解析
@@ -79,6 +80,24 @@ type Option func(*options)
 func WithClient(client *http.Client) Option {
 	return func(opt *options) {
 		opt.client = client
+	}
+}
+
+func WithClientTrace(t *httptrace.ClientTrace) Option {
+	return func(opt *options) {
+		opt.clientTrace = t
+	}
+}
+
+func WithRequestInterceptor(i RequestInterceptor) Option {
+	return func(opt *options) {
+		opt.requestInterceptor = i
+	}
+}
+
+func WithResponseInterceptor(i ResponseInterceptor) Option {
+	return func(opt *options) {
+		opt.responseInterceptor = i
 	}
 }
 
@@ -98,12 +117,6 @@ func WithDNSResolver(dnsResolver DNSResolverFunc) Option {
 func WithShouldRetryFunc(f func(*http.Response, error) bool) Option {
 	return func(opt *options) {
 		opt.shouldRetryFunc = f
-	}
-}
-
-func WithInterceptor(i Interceptor) Option {
-	return func(opt *options) {
-		opt.interceptor = i
 	}
 }
 
@@ -295,7 +308,7 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	var resp *http.Response
 	for i := 0; i < execTimes; i++ {
 		resp, err = req.opts.client.Do(targetReq)
-		req.afterResponse(resp, err)
+		req.afterResponse(targetReq, resp, err)
 		if req.opts.retryTimes > 0 && !req.opts.shouldRetryFunc(resp, err) {
 			break
 		}
@@ -329,22 +342,26 @@ func (req *Request) build(method string, url string, data interface{}, header ht
 			targetReq.Header.Add(k, v)
 		}
 	}
+	if req.opts.clientTrace != nil {
+		targetReq = targetReq.WithContext(httptrace.WithClientTrace(targetReq.Context(), req.opts.clientTrace))
+
+	}
 
 	return targetReq, nil
 }
 
 func (req *Request) beforeRequest(r *http.Request) {
-	req.dumpRequestIfNeed(r)
-	if req.opts.interceptor != nil {
-		req.opts.interceptor.BeforeRequest(r)
+	if req.opts.requestInterceptor != nil {
+		req.opts.requestInterceptor(r)
 	}
+	req.dumpRequestIfNeed(r)
 }
 
-func (req *Request) afterResponse(resp *http.Response, err error) {
-	req.dumpResponseIfNeed(resp, err)
-	if req.opts.interceptor != nil {
-		req.opts.interceptor.AfterResponse(resp, err)
+func (req *Request) afterResponse(r *http.Request, resp *http.Response, err error) {
+	if req.opts.responseInterceptor != nil {
+		req.opts.responseInterceptor(r, resp, err)
 	}
+	req.dumpResponseIfNeed(resp, err)
 }
 
 // request调试输出
