@@ -301,7 +301,7 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	}
 	req.beforeRequest(targetReq)
 	execTimes := 1
-	retryInterval := 0
+	retryInterval := 1
 	if req.opts.retryTimes > 0 {
 		execTimes += req.opts.retryTimes
 	}
