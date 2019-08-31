@@ -243,20 +243,26 @@ func (req *Request) init() {
 }
 
 // Get get请求
-func (req *Request) Get(url string, data url.Values, header http.Header) (*Response, error) {
-	url = req.makeURLWithParams(url, data)
+func (req *Request) Get(url string, params url.Values, header http.Header) (*Response, error) {
+	url = req.makeURLWithParams(url, params)
 
 	return req.do(http.MethodGet, url, nil, header)
 }
 
 // Post 普通post请求
 func (req *Request) Post(url string, data interface{}, header http.Header) (*Response, error) {
-	if header == nil {
-		header = make(http.Header)
-	}
-	header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	return req.do(http.MethodPost, url, data, header)
+}
+
+// Put Put请求
+func (req *Request) Put(url string, data interface{}, header http.Header) (*Response, error) {
+	return req.do(http.MethodPut, url, data, header)
+}
+
+// Delete Delete请求
+func (req *Request) Delete(url string, data interface{}, header http.Header) (*Response, error) {
+	return req.do(http.MethodDelete, url, data, header)
 }
 
 // PostJSON 发送json body
@@ -331,6 +337,9 @@ func (req *Request) build(method string, url string, data interface{}, header ht
 	}
 	if header == nil {
 		header = make(http.Header)
+	}
+	if method != http.MethodGet && header.Get("Content-Type") == "" {
+		header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 	targetReq.Header = header
 	host := header.Get("Host")

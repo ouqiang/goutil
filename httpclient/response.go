@@ -87,15 +87,14 @@ func (resp *Response) Discard() (int64, error) {
 
 // WriteFile 读取http.Body内容并写入文件中
 func (resp *Response) WriteFile(filename string) (int64, error) {
-	defer func() {
-		_ = resp.rawResp.Body.Close()
-	}()
 	f, err := os.Create(filename)
 	if err != nil {
+		_, _ = resp.Discard()
 		return 0, err
 	}
 	defer func() {
 		_ = f.Close()
+		_ = resp.rawResp.Body.Close()
 	}()
 
 	return io.Copy(f, resp.rawResp.Body)
