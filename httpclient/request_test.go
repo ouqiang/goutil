@@ -112,15 +112,15 @@ func TestRequest_shouldRetry(t *testing.T) {
 	err := errors.New("should retry")
 
 	req := NewRequest()
-	require.True(t, req.shouldRetry(resp, err))
+	require.True(t, req.shouldRetry(nil, resp, err))
 
 	err = nil
 	resp.StatusCode = http.StatusNotFound
-	require.True(t, req.shouldRetry(resp, err))
+	require.True(t, req.shouldRetry(nil, resp, err))
 
 	err = nil
 	resp.StatusCode = http.StatusOK
-	require.False(t, req.shouldRetry(resp, err))
+	require.False(t, req.shouldRetry(nil, resp, err))
 
 }
 

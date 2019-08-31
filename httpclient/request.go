@@ -63,7 +63,7 @@ type options struct {
 	enableDefaultHeader bool
 	disableKeepAlive    bool
 	dnsResolver         DNSResolverFunc
-	shouldRetryFunc     func(*http.Response, error) bool
+	shouldRetryFunc     func(*http.Request, *http.Response, error) bool
 	requestInterceptor  RequestInterceptor
 	responseInterceptor ResponseInterceptor
 	clientTrace         *httptrace.ClientTrace
@@ -114,7 +114,7 @@ func WithDNSResolver(dnsResolver DNSResolverFunc) Option {
 }
 
 // WithShouldRetryFunc 自定义是否需要重试
-func WithShouldRetryFunc(f func(*http.Response, error) bool) Option {
+func WithShouldRetryFunc(f func(*http.Request, *http.Response, error) bool) Option {
 	return func(opt *options) {
 		opt.shouldRetryFunc = f
 	}
@@ -307,19 +307,22 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	}
 	req.beforeRequest(targetReq)
 	execTimes := 1
-	retryInterval := 1
+	retryInterval := 300 * time.Millisecond
 	if req.opts.retryTimes > 0 {
 		execTimes += req.opts.retryTimes
 	}
 	var resp *http.Response
-	for i := 0; i < execTimes; i++ {
+	for i := 0; i < execTimes; {
 		resp, err = req.opts.client.Do(targetReq)
 		req.afterResponse(targetReq, resp, err)
-		if req.opts.retryTimes > 0 && !req.opts.shouldRetryFunc(resp, err) {
+		if req.opts.retryTimes > 0 && !req.opts.shouldRetryFunc(targetReq, resp, err) {
 			break
 		}
-		retryInterval <<= 1
-		time.Sleep(time.Duration(retryInterval) * time.Second)
+		i++
+		retryInterval *= 2
+		if i < execTimes {
+			time.Sleep(retryInterval)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -402,7 +405,7 @@ func (req *Request) dumpResponseIfNeed(resp *http.Response, err error) {
 }
 
 // 是否要重试
-func (req *Request) shouldRetry(resp *http.Response, err error) bool {
+func (req *Request) shouldRetry(request *http.Request, resp *http.Response, err error) bool {
 	if err != nil {
 		return true
 	}
