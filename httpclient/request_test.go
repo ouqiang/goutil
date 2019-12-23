@@ -15,6 +15,7 @@
 package httpclient
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -184,6 +185,31 @@ func TestRequest_PostProtoBuf(t *testing.T) {
 	err = resp.DecodeProtoBuf(result)
 	require.NoError(t, err)
 	require.Equal(t, message.Name, result.Name)
+}
+
+func TestRequest_UploadFile(t *testing.T) {
+	fileContent := "test file content"
+
+	handler := func(rw http.ResponseWriter, req *http.Request) {
+		file, _, err := req.FormFile("file")
+		if err != nil {
+			panic(fmt.Errorf("读取文件错误: %s", err))
+		}
+
+		defer func() {
+			_ = file.Close()
+		}()
+		_, _ = io.Copy(rw, file)
+	}
+	s := httptest.NewServer(http.HandlerFunc(handler))
+	defer s.Close()
+
+	req := NewRequest()
+	resp, err := req.UploadFile(s.URL, strings.NewReader(fileContent), "upload.txt", nil)
+	require.NoError(t, err)
+	responseContent, err := resp.String()
+	require.NoError(t, err)
+	require.Equal(t, fileContent, responseContent)
 }
 
 func TestRequest_SetRetryTimes(t *testing.T) {

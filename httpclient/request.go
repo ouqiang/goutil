@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httptrace"
@@ -298,6 +299,37 @@ func (req *Request) PostProtoBuf(url string, v proto.Message, header http.Header
 	}
 
 	return req.do(http.MethodPost, url, body, header)
+}
+
+// UploadFile 上传文件
+func (req *Request) UploadFile(url string, reader io.Reader, filename string, header http.Header) (*Response, error) {
+	pipeReader, pipeWriter := io.Pipe()
+	mr := multipart.NewWriter(pipeWriter)
+	var err error
+	go func() {
+		defer func() {
+			_ = mr.Close()
+			_ = pipeWriter.Close()
+		}()
+
+		var part io.Writer
+		part, err = mr.CreateFormFile("file", filename)
+		if err != nil {
+			return
+		}
+		_, err = io.Copy(part, reader)
+	}()
+	if header == nil {
+		header = make(http.Header)
+	}
+	header.Set("Content-Type", mr.FormDataContentType())
+
+	resp, respErr := req.Post(url, pipeReader, header)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, respErr
 }
 
 func (req *Request) do(method string, url string, data interface{}, header http.Header) (*Response, error) {
