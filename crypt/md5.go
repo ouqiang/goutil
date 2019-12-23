@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"io"
+	"os"
 )
 
 // MD5 生成md5摘要
@@ -24,4 +25,16 @@ func Md5Stream(reader io.Reader) (string, error) {
 	}
 
 	return hex.EncodeToString(m.Sum(nil)), nil
+}
+
+func Md5Sum(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	return Md5Stream(file)
 }
