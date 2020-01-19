@@ -302,7 +302,7 @@ func (req *Request) PostProtoBuf(url string, v proto.Message, header http.Header
 }
 
 // UploadFile 上传文件
-func (req *Request) UploadFile(url string, reader io.Reader, filename string, header http.Header) (*Response, error) {
+func (req *Request) UploadFile(url string, reader io.Reader, filename string, header http.Header, params map[string]string) (*Response, error) {
 	pipeReader, pipeWriter := io.Pipe()
 	mr := multipart.NewWriter(pipeWriter)
 	var err error
@@ -318,6 +318,9 @@ func (req *Request) UploadFile(url string, reader io.Reader, filename string, he
 			return
 		}
 		_, err = io.Copy(part, reader)
+		for k, v := range params {
+			_ = mr.WriteField(k, v)
+		}
 	}()
 	if header == nil {
 		header = make(http.Header)

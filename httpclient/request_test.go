@@ -190,10 +190,17 @@ func TestRequest_PostProtoBuf(t *testing.T) {
 func TestRequest_UploadFile(t *testing.T) {
 	fileContent := "test file content"
 
+	params := map[string]string{
+		"name": "httpclient",
+	}
 	handler := func(rw http.ResponseWriter, req *http.Request) {
 		file, _, err := req.FormFile("file")
 		if err != nil {
 			panic(fmt.Errorf("读取文件错误: %s", err))
+		}
+		name := req.FormValue("name")
+		if name != "httpclient" {
+			panic("invalid post params")
 		}
 
 		defer func() {
@@ -205,7 +212,7 @@ func TestRequest_UploadFile(t *testing.T) {
 	defer s.Close()
 
 	req := NewRequest()
-	resp, err := req.UploadFile(s.URL, strings.NewReader(fileContent), "upload.txt", nil)
+	resp, err := req.UploadFile(s.URL, strings.NewReader(fileContent), "upload.txt", nil, params)
 	require.NoError(t, err)
 	responseContent, err := resp.String()
 	require.NoError(t, err)
