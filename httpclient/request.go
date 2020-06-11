@@ -312,8 +312,13 @@ func (req *Request) UploadFile(url string, reader io.Reader, filename string, he
 			_ = pipeWriter.Close()
 		}()
 
+		fileFieldName := "file"
+		if len(params) > 0 && params["_file_field_name"] != "" {
+			fileFieldName = params["_file_field_name"]
+		}
+
 		var part io.Writer
-		part, err = mr.CreateFormFile("file", filename)
+		part, err = mr.CreateFormFile(fileFieldName, filename)
 		if err != nil {
 			return
 		}
