@@ -305,7 +305,6 @@ func (req *Request) PostProtoBuf(url string, v proto.Message, header http.Header
 func (req *Request) UploadFile(url string, reader io.Reader, filename string, header http.Header, params map[string]string) (*Response, error) {
 	pipeReader, pipeWriter := io.Pipe()
 	mr := multipart.NewWriter(pipeWriter)
-	var err error
 	go func() {
 		defer func() {
 			_ = mr.Close()
@@ -318,11 +317,11 @@ func (req *Request) UploadFile(url string, reader io.Reader, filename string, he
 		}
 
 		var part io.Writer
-		part, err = mr.CreateFormFile(fileFieldName, filename)
+		part, err := mr.CreateFormFile(fileFieldName, filename)
 		if err != nil {
 			return
 		}
-		_, err = io.Copy(part, reader)
+		_, _ = io.Copy(part, reader)
 		for k, v := range params {
 			_ = mr.WriteField(k, v)
 		}
@@ -333,9 +332,6 @@ func (req *Request) UploadFile(url string, reader io.Reader, filename string, he
 	header.Set("Content-Type", mr.FormDataContentType())
 
 	resp, respErr := req.Post(url, pipeReader, header)
-	if err != nil {
-		return nil, err
-	}
 
 	return resp, respErr
 }
