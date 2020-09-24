@@ -145,7 +145,7 @@ func WithProxyURL(proxyURL string) Option {
 
 func WithUnixSocketPath(path string) Option {
 	return func(opt *options) {
-		opt.unixSocketPath = opt.unixSocketPath
+		opt.unixSocketPath = path
 	}
 }
 
