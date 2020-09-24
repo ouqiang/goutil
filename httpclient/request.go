@@ -503,6 +503,16 @@ func (req *Request) makeBody(data interface{}) io.Reader {
 
 func (req *Request) dialContext() DialContext {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		dialer := &net.Dialer{
+			Timeout:   req.opts.connectTimeout,
+			KeepAlive: 30 * time.Second,
+		}
+
+		u, err := url.Parse(addr)
+		if err == nil && u.Scheme == "unix" {
+			return dialer.DialContext(ctx, u.Scheme, u.Path)
+		}
+
 		separator := strings.LastIndex(addr, ":")
 		ip, err := req.opts.dnsResolver(addr[:separator])
 		if err != nil {
@@ -510,10 +520,6 @@ func (req *Request) dialContext() DialContext {
 		}
 
 		addr = ip + addr[separator:]
-		dialer := &net.Dialer{
-			Timeout:   req.opts.connectTimeout,
-			KeepAlive: 30 * time.Second,
-		}
 
 		return dialer.DialContext(ctx, network, addr)
 	}
