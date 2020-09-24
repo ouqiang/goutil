@@ -64,6 +64,7 @@ type options struct {
 	enableDefaultHeader bool
 	disableKeepAlive    bool
 	dnsResolver         DNSResolverFunc
+	unixSocketPath      string
 	shouldRetryFunc     func(*http.Request, *http.Response, error) bool
 	requestInterceptor  RequestInterceptor
 	responseInterceptor ResponseInterceptor
@@ -139,6 +140,12 @@ func WithRetryTime(retryTimes int) Option {
 func WithProxyURL(proxyURL string) Option {
 	return func(opt *options) {
 		opt.proxyURL = proxyURL
+	}
+}
+
+func WithUnixSocketPath(path string) Option {
+	return func(opt *options) {
+		opt.unixSocketPath = opt.unixSocketPath
 	}
 }
 
@@ -228,6 +235,9 @@ func (req *Request) init() {
 	}
 	if req.opts.dnsResolver != nil {
 		trans.DialContext = req.dialContext()
+	}
+	if req.opts.unixSocketPath != "" {
+		trans.DialContext = req.dialContextForUnixDomainSocket
 	}
 	if req.opts.client.Transport == nil {
 		req.opts.client.Transport = trans
@@ -523,4 +533,13 @@ func (req *Request) dialContext() DialContext {
 
 		return dialer.DialContext(ctx, network, addr)
 	}
+}
+
+func (req *Request) dialContextForUnixDomainSocket(ctx context.Context, network, address string) (net.Conn, error) {
+	dialer := &net.Dialer{
+		Timeout:   req.opts.connectTimeout,
+		KeepAlive: 30 * time.Second,
+	}
+
+	return dialer.DialContext(ctx, "unix", req.opts.unixSocketPath)
 }
