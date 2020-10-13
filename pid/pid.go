@@ -20,7 +20,7 @@ func WriteToFile(filename string) error {
 }
 
 // ReadFromFile 从文件中读取pid
-func ReadFromFile(filename string) (int64, error) {
+func ReadFromFile(filename string) (int, error) {
 	buf, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return 0, err
@@ -30,7 +30,7 @@ func ReadFromFile(filename string) (int64, error) {
 		return 0, errors.New("failed to parse pid")
 	}
 
-	return int64(pid), nil
+	return pid, nil
 }
 
 // IsRunning 通过pid判断进程是否运行中

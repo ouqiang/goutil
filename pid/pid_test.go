@@ -23,7 +23,7 @@ func TestReadWriteToFile(t *testing.T) {
 	pid, err := ReadFromFile(f.Name())
 	require.NoError(t, err)
 
-	require.Equal(t, os.Getpid(), int(pid))
+	require.Equal(t, os.Getpid(), pid)
 }
 
 func TestIsRunning(t *testing.T) {
