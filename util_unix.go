@@ -19,6 +19,10 @@ func Daemon(w io.Writer) {
 	cmd := exec.Command(execFile, args...)
 	cmd.Stdin = nil
 	if w != nil {
+		if _, ok := w.(*os.File); !ok {
+			panic("writer requires a file descriptor")
+		}
+
 		cmd.Stdout = w
 		cmd.Stderr = w
 	} else {
