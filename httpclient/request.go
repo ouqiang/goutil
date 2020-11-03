@@ -347,21 +347,22 @@ func (req *Request) UploadFile(url string, reader io.Reader, filename string, he
 }
 
 func (req *Request) do(method string, url string, data interface{}, header http.Header) (*Response, error) {
-	targetReq, err := req.build(method, url, data, header)
-	if err != nil {
-		return nil, err
-	}
-	req.beforeRequest(targetReq)
 	execTimes := 1
 	retryInterval := 300 * time.Millisecond
 	if req.opts.retryTimes > 0 {
 		execTimes += req.opts.retryTimes
 	}
 	var resp *http.Response
+	var err error
 	for i := 0; i < execTimes; {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
 		}
+		targetReq, err := req.build(method, url, data, header)
+		if err != nil {
+			return nil, err
+		}
+		req.beforeRequest(targetReq)
 		resp, err = req.opts.client.Do(targetReq)
 		req.afterResponse(targetReq, resp, err)
 		if req.opts.retryTimes > 0 && !req.opts.shouldRetryFunc(targetReq, resp, err) {
@@ -372,9 +373,6 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 		if i < execTimes {
 			time.Sleep(retryInterval)
 		}
-	}
-	if err != nil {
-		return nil, err
 	}
 
 	return newResponse(resp), err
