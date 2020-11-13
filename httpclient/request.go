@@ -352,13 +352,14 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	if req.opts.retryTimes > 0 {
 		execTimes += req.opts.retryTimes
 	}
+	var targetReq *http.Request
 	var resp *http.Response
 	var err error
 	for i := 0; i < execTimes; {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
 		}
-		targetReq, err := req.build(method, url, data, header)
+		targetReq, err = req.build(method, url, data, header)
 		if err != nil {
 			return nil, err
 		}
