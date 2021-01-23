@@ -37,6 +37,17 @@ func ContainsInt(a []int, i int) bool {
 	return false
 }
 
+// ContainsInt64 是否包含整型元素
+func ContainsInt64(a []int64, i int64) bool {
+	for _, item := range a {
+		if item == i {
+			return true
+		}
+	}
+
+	return false
+}
+
 // RemoveEmptyString 移除空字符串
 func RemoveEmptyString(a []string) []string {
 	length := len(a)
@@ -58,17 +69,16 @@ func RemoveEmptyString(a []string) []string {
 
 // Remove 移除元素
 func Remove(a []string, s string) []string {
-        length := len(a)
-        if length == 0 {
-                return a
-        }
-        out := make([]string, 0, length)
-        for _, item := range a {
-                if item != s {
-                        out = append(out, item)
-                }
-        }
+	length := len(a)
+	if length == 0 {
+		return a
+	}
+	out := make([]string, 0, length)
+	for _, item := range a {
+		if item != s {
+			out = append(out, item)
+		}
+	}
 
-        return out
+	return out
 }
-
