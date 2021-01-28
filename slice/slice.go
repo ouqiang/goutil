@@ -82,3 +82,43 @@ func Remove(a []string, s string) []string {
 
 	return out
 }
+
+// StringUnique 去重
+func StringUnique(a []string) []string {
+	num := len(a)
+
+	if num <= 0 {
+		return a
+	}
+	out := make([]string, 0, num)
+	exists := make(map[string]bool, num)
+	for _, item := range a {
+		if exists[item] {
+			continue
+		}
+		exists[item] = true
+		out = append(out, item)
+	}
+
+	return out
+}
+
+// Int64Unique 去重
+func Int64Unique(a []int64) []int64 {
+	num := len(a)
+
+	if num <= 0 {
+		return a
+	}
+	out := make([]int64, 0, num)
+	exists := make(map[int64]bool, num)
+	for _, item := range a {
+		if exists[item] {
+			continue
+		}
+		exists[item] = true
+		out = append(out, item)
+	}
+
+	return out
+}

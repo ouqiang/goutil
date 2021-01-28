@@ -42,8 +42,8 @@ func TestRemoveEmptyString(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-        a := []string{"foo", "test", "example"}
+	a := []string{"foo", "test", "example"}
 
-        expected := []string{"foo", "example"}
-        require.Equal(t, expected, Remove(a, "test"))
+	expected := []string{"foo", "example"}
+	require.Equal(t, expected, Remove(a, "test"))
 }
