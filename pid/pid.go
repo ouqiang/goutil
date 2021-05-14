@@ -9,8 +9,14 @@ import (
 )
 
 // WriteToFile 写入pid到文件中
-func WriteToFile(filename string) error {
-	pid := os.Getpid()
+func WriteToFile(filename string, pids ...int) error {
+	var pid int
+	if len(pids) > 0 {
+		pid = pids[0]
+	} else {
+		pid = os.Getpid()
+	}
+
 	if pid <= 0 {
 		return errors.New("failed to get pid")
 	}
