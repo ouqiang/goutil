@@ -1,4 +1,7 @@
+// +build !windows
+
 package goutil
+
 
 import (
 	"io"
