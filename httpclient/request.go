@@ -27,10 +27,24 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
 )
+
+var (
+	metricValue *atomic.Value
+)
+
+// EnableMetric 启用metrics
+func EnableMetric(m *Metric) {
+	if m == nil {
+		return
+	}
+	metricValue = &atomic.Value{}
+	metricValue.Store(m)
+}
 
 const (
 	defaultTimeout             = 20 * time.Second
@@ -69,7 +83,6 @@ type options struct {
 	requestInterceptor  RequestInterceptor
 	responseInterceptor ResponseInterceptor
 	clientTrace         *httptrace.ClientTrace
-	metric              *Metric
 }
 
 // DNSResolver DNS解析
@@ -83,13 +96,6 @@ type Option func(*options)
 func WithClient(client *http.Client) Option {
 	return func(opt *options) {
 		opt.client = client
-	}
-}
-
-// WithMetric 统计
-func WithMetric(metric *Metric) Option {
-	return func(opt *options) {
-		opt.metric = metric
 	}
 }
 
@@ -364,6 +370,11 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 	var resp *http.Response
 	var err error
 	var startTime time.Time
+	var metric *Metric
+	if metricValue != nil {
+		metric, _ = metricValue.Load().(*Metric)
+	}
+
 	for i := 0; i < execTimes; {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
@@ -373,13 +384,13 @@ func (req *Request) do(method string, url string, data interface{}, header http.
 			return nil, err
 		}
 		req.beforeRequest(targetReq)
-		if req.opts.metric != nil {
+		if metric != nil {
 			startTime = time.Now()
 		}
 		resp, err = req.opts.client.Do(targetReq)
-		if req.opts.metric != nil {
-			req.opts.metric.Count(targetReq.URL, err)
-			req.opts.metric.Latency(targetReq.URL, time.Since(startTime))
+		if metric != nil {
+			metric.Count(targetReq.URL, err)
+			metric.Latency(targetReq.URL, time.Since(startTime))
 		}
 		req.afterResponse(targetReq, resp, err)
 		if req.opts.retryTimes > 0 && !req.opts.shouldRetryFunc(targetReq, resp, err) {
