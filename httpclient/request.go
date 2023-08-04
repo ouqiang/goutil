@@ -31,7 +31,6 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var (
@@ -84,7 +83,6 @@ type options struct {
 	requestInterceptor  RequestInterceptor
 	responseInterceptor ResponseInterceptor
 	clientTrace         *httptrace.ClientTrace
-	otelEnabled         bool
 }
 
 // DNSResolverFunc DNS解析
@@ -93,12 +91,6 @@ type DNSResolverFunc func(host string) (ip string, err error)
 type DialContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 type Option func(*options)
-
-func WithOtelEnabled() Option {
-	return func(opt *options) {
-		opt.otelEnabled = true
-	}
-}
 
 // WithClient 自定义http client
 func WithClient(client *http.Client) Option {
@@ -272,9 +264,6 @@ func (req *Request) init() {
 	}
 	if req.opts.cookieJar != nil {
 		req.opts.client.Jar = req.opts.cookieJar
-	}
-	if req.opts.otelEnabled {
-		req.opts.client.Transport = otelhttp.NewTransport(req.opts.client.Transport)
 	}
 }
 
