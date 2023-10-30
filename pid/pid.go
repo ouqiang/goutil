@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -31,7 +32,7 @@ func ReadFromFile(filename string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	pid, _ := strconv.Atoi(string(buf))
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(buf)))
 	if pid <= 0 {
 		return 0, errors.New("failed to parse pid")
 	}
