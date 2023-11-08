@@ -1,7 +1,6 @@
-// +build !windows
+// +build windows
 
 package goutil
-
 
 import (
         "github.com/ouqiang/goutil/slice"
@@ -28,7 +27,7 @@ func Daemon(w io.Writer) {
                 cmd.Stderr = nil
         }
         cmd.SysProcAttr = &syscall.SysProcAttr{
-               // HideWindow: true,
+                HideWindow: true,
         }
         err = cmd.Start()
         if err != nil {
