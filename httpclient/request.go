@@ -219,6 +219,10 @@ func (req *Request) init() {
 	if req.opts.connectTimeout <= 0 {
 		req.opts.connectTimeout = defaultConnectTimeout
 	}
+	if req.opts.timeout <= 0 {
+		req.opts.timeout = defaultTimeout
+	}
+
 	if req.opts.maxIdleConnsPerHost <= 0 {
 		req.opts.maxIdleConnsPerHost = defaultMaxIdleConnsPerHost
 	}
@@ -245,7 +249,9 @@ func (req *Request) init() {
 	}
 
 	if req.opts.client == nil {
-		req.opts.client = &http.Client{}
+		req.opts.client = &http.Client{
+			Timeout: req.opts.timeout,
+		}
 	}
 	if req.opts.dnsResolver != nil {
 		trans.DialContext = req.dialContext()
@@ -255,9 +261,6 @@ func (req *Request) init() {
 	}
 	if req.opts.client.Transport == nil {
 		req.opts.client.Transport = trans
-	}
-	if req.opts.timeout == 0 {
-		req.opts.client.Timeout = defaultTimeout
 	}
 	if req.opts.shouldRetryFunc == nil {
 		req.opts.shouldRetryFunc = req.shouldRetry
